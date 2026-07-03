@@ -1,0 +1,40 @@
+# Build artifacts
+**/bin/
+**/obj/
+**/.vs/
+*.user
+*.suo
+*.cache
+
+# Flutter / Dart
+Mobile/miclink/.dart_tool/
+Mobile/miclink/.flutter-plugins
+Mobile/miclink/.flutter-plugins-dependencies
+Mobile/miclink/build/
+Mobile/miclink/.pub-cache/
+
+# Driver (build locally with WDK)
+drivers/MicLinkVirtualAudio/msvc-vctools/
+drivers/MicLinkVirtualAudio/upstream/x64/
+drivers/MicLinkVirtualAudio/upstream/**/x64/
+drivers/MicLinkVirtualAudio/install/
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# IDE
+.idea/
+*.iml
+
+# Secrets
+.env
+*.pfx
+*.pvk
+
+# Installer output
+Pc/installer/output/
+
+# NuGet
+**/project.lock.json

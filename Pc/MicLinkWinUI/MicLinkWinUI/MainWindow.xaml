@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="MicLinkWinUI.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="MicLink">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop Kind="BaseAlt" />
+    </Window.SystemBackdrop>
+
+    <Grid Background="{ThemeResource SurfaceBrush}" Padding="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Grid Grid.Row="0" Margin="0,0,0,20">
+            <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                <FontIcon Glyph="&#xE717;" FontSize="28" Foreground="{StaticResource AccentBrush}" />
+                <StackPanel Spacing="2">
+                    <TextBlock Text="MicLink" FontSize="24" FontWeight="Bold"
+                               Foreground="{ThemeResource PrimaryTextBrush}" />
+                </StackPanel>
+            </StackPanel>
+        </Grid>
+
+        <!-- Status Panel -->
+        <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,0,0,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Style="{StaticResource SectionTitleStyle}" Text="СТАТУС" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Ellipse Width="10" Height="10" VerticalAlignment="Center"
+                                 Fill="{StaticResource MutedTextBrush}" />
+                        <TextBlock Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
+                                   FontSize="16" FontWeight="SemiBold" />
+                    </StackPanel>
+                    <TextBlock Text="{x:Bind ViewModel.Telemetry.DeviceName, Mode=OneWay}"
+                               Foreground="{StaticResource MutedTextBrush}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Width="90" Margin="12,0,0,0" Spacing="4">
+                    <TextBlock Style="{StaticResource SectionTitleStyle}" Text="ЗАРЯД" />
+                    <TextBlock Style="{StaticResource MetricValueStyle}"
+                               Text="{x:Bind ViewModel.BatteryDisplay, Mode=OneWay}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Width="90" Margin="12,0,0,0" Spacing="4">
+                    <TextBlock Style="{StaticResource SectionTitleStyle}" Text="СИГНАЛ" />
+                    <TextBlock Style="{StaticResource MetricValueStyle}"
+                               Text="{x:Bind ViewModel.SignalDisplay, Mode=OneWay}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="3" Width="90" Margin="12,0,0,0" Spacing="4">
+                    <TextBlock Style="{StaticResource SectionTitleStyle}" Text="МИКРОФОН" />
+                    <TextBlock Style="{StaticResource MetricValueStyle}"
+                               Text="{x:Bind ViewModel.MicStatusDisplay, Mode=OneWay}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="4" Width="90" Margin="12,0,0,0" Spacing="4">
+                    <TextBlock Style="{StaticResource SectionTitleStyle}" Text="КАМЕРА" />
+                    <TextBlock Style="{StaticResource MetricValueStyle}"
+                               Text="{x:Bind ViewModel.CameraStatusDisplay, Mode=OneWay}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="5" Width="90" Margin="12,0,0,0" Spacing="4">
+                    <TextBlock Style="{StaticResource SectionTitleStyle}" Text="ПИНГ" />
+                    <TextBlock Style="{StaticResource MetricValueStyle}"
+                               Text="{x:Bind ViewModel.PingDisplay, Mode=OneWay}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="6" Width="110" Margin="12,0,0,0" Spacing="4"
+                            Visibility="{x:Bind ViewModel.PairingPinVisibility, Mode=OneWay}">
+                    <TextBlock Style="{StaticResource SectionTitleStyle}" Text="PIN" />
+                    <TextBlock Style="{StaticResource MetricValueStyle}"
+                               Foreground="{StaticResource AccentBrush}"
+                               Text="{x:Bind ViewModel.PairingPinDisplay, Mode=OneWay}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Tabs -->
+        <TabView Grid.Row="2" IsAddTabButtonVisible="False" VerticalAlignment="Stretch">
+            <TabViewItem Header="Microphone">
+                <TabViewItem.IconSource>
+                    <SymbolIconSource Symbol="Microphone" />
+                </TabViewItem.IconSource>
+                <ScrollViewer>
+                    <StackPanel Spacing="16" Padding="8">
+                        <Border Style="{StaticResource CardStyle}">
+                            <StackPanel Spacing="8">
+                                <TextBlock Style="{StaticResource SectionTitleStyle}" Text="УРОВЕНЬ СИГНАЛА" />
+                                <ProgressBar Value="{x:Bind ViewModel.AudioInputLevel, Mode=OneWay}"
+                                             Maximum="100" Height="8" />
+                                <TextBlock Foreground="{StaticResource MutedTextBrush}" FontSize="12"
+                                           Text="{x:Bind ViewModel.AudioLevelHint, Mode=OneWay}" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabViewItem>
+
+            <TabViewItem Header="Camera">
+                <TabViewItem.IconSource>
+                    <SymbolIconSource Symbol="Camera" />
+                </TabViewItem.IconSource>
+                <ScrollViewer>
+                    <StackPanel Spacing="16" Padding="8">
+                        <Border Style="{StaticResource CardStyle}" Height="220">
+                            <Grid>
+                                <FontIcon Glyph="&#xE714;" FontSize="48"
+                                          Foreground="{StaticResource MutedTextBrush}"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabViewItem>
+
+            <TabViewItem Header="Settings">
+                <TabViewItem.IconSource>
+                    <SymbolIconSource Symbol="Setting" />
+                </TabViewItem.IconSource>
+                <ScrollViewer>
+                    <StackPanel Spacing="20" Padding="8" MaxWidth="520">
+                        <StackPanel Spacing="8">
+                            <TextBlock Style="{StaticResource SectionTitleStyle}" Text="ТЕМА" />
+                            <RadioButtons x:Name="ThemeRadioButtons" SelectedIndex="1"
+                                          SelectionChanged="ThemeRadio_SelectionChanged">
+                                <RadioButton Content="Системная" Tag="System" />
+                                <RadioButton Content="Тёмная" Tag="Dark" />
+                                <RadioButton Content="Светлая" Tag="Light" />
+                            </RadioButtons>
+                        </StackPanel>
+
+                        <StackPanel Spacing="8">
+                            <TextBlock Style="{StaticResource SectionTitleStyle}" Text="АКЦЕНТ" />
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <Button Width="44" Height="44" CornerRadius="22" Tag="#6C5CE7"
+                                        Click="AccentColor_Click" Background="#6C5CE7" />
+                                <Button Width="44" Height="44" CornerRadius="22" Tag="#0984E3"
+                                        Click="AccentColor_Click" Background="#0984E3" />
+                                <Button Width="44" Height="44" CornerRadius="22" Tag="#00B894"
+                                        Click="AccentColor_Click" Background="#00B894" />
+                                <Button Width="44" Height="44" CornerRadius="22" Tag="#E17055"
+                                        Click="AccentColor_Click" Background="#E17055" />
+                                <Button Width="44" Height="44" CornerRadius="22" Tag="#FD79A8"
+                                        Click="AccentColor_Click" Background="#FD79A8" />
+                                <Button Width="44" Height="44" CornerRadius="22" Tag="#FDCB6E"
+                                        Click="AccentColor_Click" Background="#FDCB6E" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Spacing="8">
+                            <TextBlock Style="{StaticResource SectionTitleStyle}" Text="МИКРОФОН" />
+                            <TextBlock Text="{x:Bind SettingsViewModel.DriverStatusText, Mode=OneWay}"
+                                       FontWeight="SemiBold" />
+                            <Button Content="Установить драйвер"
+                                    Command="{x:Bind SettingsViewModel.InstallDriverCommand}"
+                                    Visibility="{x:Bind SettingsViewModel.InstallButtonVisibility, Mode=OneWay}" />
+                            <ProgressRing IsActive="{x:Bind SettingsViewModel.IsInstallingDriver, Mode=OneWay}"
+                                          Width="28" Height="28"
+                                          Visibility="{x:Bind SettingsViewModel.InstallingVisibility, Mode=OneWay}" />
+                            <ToggleSwitch Header="Монитор на колонках"
+                                          IsOn="{x:Bind SettingsViewModel.MonitorOnSpeakers, Mode=TwoWay}" />
+                        </StackPanel>
+
+                        <Border Style="{StaticResource CardStyle}">
+                            <StackPanel Spacing="4">
+                                <TextBlock Style="{StaticResource SectionTitleStyle}" Text="ВИРТУАЛЬНЫЕ УСТРОЙСТВА" />
+                                <TextBlock Text="{x:Bind MicDeviceName, Mode=OneWay}" />
+                                <TextBlock Text="{x:Bind CameraDeviceName, Mode=OneWay}" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabViewItem>
+
+            <TabViewItem Header="Logs">
+                <TabViewItem.IconSource>
+                    <SymbolIconSource Symbol="Document" />
+                </TabViewItem.IconSource>
+                <Grid Padding="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Style="{StaticResource SectionTitleStyle}" Text="ЖУРНАЛ" Margin="0,0,0,12" />
+                    <Border Grid.Row="1" Style="{StaticResource CardStyle}" Padding="12">
+                        <ScrollViewer>
+                            <TextBlock FontFamily="Consolas" FontSize="12"
+                                       Text="{x:Bind LogsViewModel.LogText, Mode=OneWay}"
+                                       TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+            </TabViewItem>
+        </TabView>
+    </Grid>
+</Window>

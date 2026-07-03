@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "MicLinkWinUI (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "MicLinkWinUI (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
