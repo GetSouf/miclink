@@ -13,6 +13,7 @@ public partial class SettingsViewModel : ObservableObject
     private readonly IThemeService _themeService;
     private readonly ILogService _logService;
     private readonly IAudioOutputSettingsService _audioOutputSettings;
+    private readonly IHotkeySettingsService _hotkeySettings;
     private readonly IVirtualMicDriverService _virtualMicDriver;
     private bool _isInitializing = true;
 
@@ -31,6 +32,12 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private bool _isInstallingDriver;
 
+    [ObservableProperty]
+    private string _hotkeyMicMute = string.Empty;
+
+    [ObservableProperty]
+    private string _hotkeyCameraMute = string.Empty;
+
     public bool ShowInstallDriverButton => !IsDriverInstalled && !IsInstallingDriver;
 
     public Visibility InstallButtonVisibility =>
@@ -46,11 +53,13 @@ public partial class SettingsViewModel : ObservableObject
         IThemeService themeService,
         ILogService logService,
         IAudioOutputSettingsService audioOutputSettings,
+        IHotkeySettingsService hotkeySettings,
         IVirtualMicDriverService virtualMicDriver)
     {
         _themeService = themeService;
         _logService = logService;
         _audioOutputSettings = audioOutputSettings;
+        _hotkeySettings = hotkeySettings;
         _virtualMicDriver = virtualMicDriver;
 
         var current = _themeService.Current;
@@ -58,6 +67,10 @@ public partial class SettingsViewModel : ObservableObject
 
         var audio = _audioOutputSettings.Current;
         _monitorOnSpeakers = audio.MonitorOnSpeakers;
+
+        var hotkeys = _hotkeySettings.Current;
+        _hotkeyMicMute = FormatHotkeyDisplay(hotkeys.MicrophoneMute);
+        _hotkeyCameraMute = FormatHotkeyDisplay(hotkeys.CameraMute);
 
         _virtualMicDriver.StatusChanged += OnDriverStatusChanged;
         UpdateDriverStatus();
@@ -159,4 +172,7 @@ public partial class SettingsViewModel : ObservableObject
 
         _logService.Info("Настройки аудиовыхода обновлены");
     }
+
+    private static string FormatHotkeyDisplay(string value) =>
+        string.IsNullOrWhiteSpace(value) ? "Не назначено" : value;
 }

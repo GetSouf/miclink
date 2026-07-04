@@ -14,4 +14,6 @@ public static class AppConstants
     public const string SettingsKeyTheme = "Theme";
     public const string SettingsKeyMonitorSpeakers = "MonitorOnSpeakers";
     public const string SettingsKeyEffectsChain = "EffectsChain";
+    public const string SettingsKeyHotkeyMicMute = "HotkeyMicMute";
+    public const string SettingsKeyHotkeyCameraMute = "HotkeyCameraMute";
 }

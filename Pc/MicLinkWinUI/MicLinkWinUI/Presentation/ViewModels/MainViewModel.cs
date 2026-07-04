@@ -1,6 +1,7 @@
 namespace MicLinkWinUI.Presentation.ViewModels;
 
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using MicLinkWinUI.Core.Constants;
 using MicLinkWinUI.Domain.Enums;
 using MicLinkWinUI.Domain.Interfaces;
@@ -32,6 +33,9 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isPairingVisible;
+
+    [ObservableProperty]
+    private bool _isSpectrumVisualizerEnabled = true;
 
     public MainViewModel(
         ILogService logService,
@@ -82,12 +86,36 @@ public partial class MainViewModel : ObservableObject
     public string CameraStatusDisplay =>
         Telemetry.IsCameraMuted ? "Выкл" : "Вкл";
 
+    public bool IsMicrophoneMuted => Telemetry.IsMicrophoneMuted;
+
+    public bool IsCameraMuted => Telemetry.IsCameraMuted;
+
+    public bool CanControlMute => Status == ConnectionStatus.Connected;
+
     public string AudioLevelHint =>
         Telemetry.IsMicrophoneMuted
-            ? "Микрофон выключен на телефоне"
+            ? "Микрофон выключен"
             : AudioInputLevel > 1
                 ? "Приём аудио"
                 : "Говорите в телефон";
+
+    [RelayCommand(CanExecute = nameof(CanControlMute))]
+    private async Task ToggleMicrophoneMuteAsync()
+    {
+        await _connectionHost.SetMicrophoneMutedAsync(!Telemetry.IsMicrophoneMuted);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanControlMute))]
+    private async Task ToggleCameraMuteAsync()
+    {
+        await _connectionHost.SetCameraMutedAsync(!Telemetry.IsCameraMuted);
+    }
+
+    [RelayCommand]
+    private void ToggleSpectrumVisualizer()
+    {
+        IsSpectrumVisualizerEnabled = !IsSpectrumVisualizerEnabled;
+    }
 
     private void OnAudioLevelChanged()
     {
@@ -113,7 +141,13 @@ public partial class MainViewModel : ObservableObject
             OnPropertyChanged(nameof(PingDisplay));
             OnPropertyChanged(nameof(MicStatusDisplay));
             OnPropertyChanged(nameof(CameraStatusDisplay));
+            OnPropertyChanged(nameof(IsMicrophoneMuted));
+            OnPropertyChanged(nameof(IsCameraMuted));
+            OnPropertyChanged(nameof(CanControlMute));
             OnPropertyChanged(nameof(StatusBadgeColor));
+            OnPropertyChanged(nameof(AudioLevelHint));
+            ToggleMicrophoneMuteCommand.NotifyCanExecuteChanged();
+            ToggleCameraMuteCommand.NotifyCanExecuteChanged();
         });
     }
 
@@ -129,7 +163,10 @@ public partial class MainViewModel : ObservableObject
             _ => "Ожидание подключения"
         };
 
+        OnPropertyChanged(nameof(CanControlMute));
         OnPropertyChanged(nameof(StatusBadgeColor));
+        ToggleMicrophoneMuteCommand.NotifyCanExecuteChanged();
+        ToggleCameraMuteCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnIsPairingVisibleChanged(bool value) =>
@@ -142,6 +179,8 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(PingDisplay));
         OnPropertyChanged(nameof(MicStatusDisplay));
         OnPropertyChanged(nameof(CameraStatusDisplay));
+        OnPropertyChanged(nameof(IsMicrophoneMuted));
+        OnPropertyChanged(nameof(IsCameraMuted));
         OnPropertyChanged(nameof(AudioLevelHint));
     }
 }

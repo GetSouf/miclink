@@ -26,7 +26,7 @@ class ConnectionRepository extends ChangeNotifier {
   }
 
   static const _maxReconnectAttempts = 8;
-  static const _pcAudioReadyDelay = Duration(milliseconds: 220);
+  static const _pcAudioReadyDelay = Duration(milliseconds: 80);
 
   final MdnsDiscoveryService _discovery = MdnsDiscoveryService();
   final PairingClient _client = PairingClient();
@@ -60,6 +60,7 @@ class ConnectionRepository extends ChangeNotifier {
 
   Future<void> _bootstrap() async {
     _client.onDisconnected = _handleUnexpectedDisconnect;
+    _client.onControlMessage = _handleControlMessage;
     await _discovery.start();
     _deviceId = await _storage.getOrCreateDeviceId();
 
@@ -76,9 +77,9 @@ class ConnectionRepository extends ChangeNotifier {
   /// Full reset: timers, sockets, audio, stored session — clean slate.
   Future<void> hardReset() async {
     _connectionGeneration++;
+    _operationInFlight = false;
     _cancelAllTimers();
     _reconnectAttempts = 0;
-    _operationInFlight = false;
     _errorMessage = null;
 
     await _stopAudio();
@@ -88,6 +89,7 @@ class ConnectionRepository extends ChangeNotifier {
     _session = null;
     _discoveredPc = null;
     _enterDiscovering();
+    notifyListeners();
   }
 
   void _cancelAllTimers() {
@@ -449,6 +451,31 @@ class ConnectionRepository extends ChangeNotifier {
   void toggleCamera() {
     _setInfo(_info.copyWith(isCameraMuted: !_info.isCameraMuted));
     _sendMuteUpdate();
+  }
+
+  void _handleControlMessage(Map<String, dynamic> message) {
+    if (message['type'] != MicLinkProtocol.muteUpdate) {
+      return;
+    }
+
+    final micMuted = message['micMuted'] as bool?;
+    final cameraMuted = message['cameraMuted'] as bool?;
+    if (micMuted == null && cameraMuted == null) {
+      return;
+    }
+
+    final nextMic = micMuted ?? _info.isMicrophoneMuted;
+    final nextCam = cameraMuted ?? _info.isCameraMuted;
+    if (nextMic == _info.isMicrophoneMuted &&
+        nextCam == _info.isCameraMuted) {
+      return;
+    }
+
+    _setInfo(_info.copyWith(
+      isMicrophoneMuted: nextMic,
+      isCameraMuted: nextCam,
+    ));
+    unawaited(_syncMicrophoneCapture());
   }
 
   void _sendMuteUpdate() {

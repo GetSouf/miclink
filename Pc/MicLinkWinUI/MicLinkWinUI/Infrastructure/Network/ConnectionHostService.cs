@@ -78,6 +78,49 @@ public sealed class ConnectionHostService : IConnectionHostService
         SetStatus(ConnectionStatus.Disconnected);
     }
 
+    public async Task SetMicrophoneMutedAsync(bool muted)
+    {
+        if (Telemetry.IsMicrophoneMuted == muted)
+        {
+            return;
+        }
+
+        await ApplyRemoteMuteAsync(muted, Telemetry.IsCameraMuted);
+    }
+
+    public async Task SetCameraMutedAsync(bool muted)
+    {
+        if (Telemetry.IsCameraMuted == muted)
+        {
+            return;
+        }
+
+        await ApplyRemoteMuteAsync(Telemetry.IsMicrophoneMuted, muted);
+    }
+
+    private async Task ApplyRemoteMuteAsync(bool micMuted, bool cameraMuted)
+    {
+        UpdateTelemetry(Telemetry.DeviceName, Telemetry with
+        {
+            IsMicrophoneMuted = micMuted,
+            IsCameraMuted = cameraMuted
+        });
+
+        if (!_tcpServer.HasActiveClient)
+        {
+            return;
+        }
+
+        var payload = ProtocolJson.Serialize(new ProtocolMessage
+        {
+            Type = MicLinkProtocol.MessageTypes.MuteUpdate,
+            MicMuted = micMuted,
+            CameraMuted = cameraMuted
+        });
+
+        await _tcpServer.SendAsync(payload);
+    }
+
     private Task<string?> HandleMessageAsync(string line)
     {
         var message = ProtocolJson.Deserialize(line);

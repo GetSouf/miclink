@@ -4,14 +4,22 @@ using MicLinkWinUI.Core.Constants;
 using MicLinkWinUI.Domain.Interfaces;
 
 /// <summary>
-/// Smooths irregular TCP chunks into steady 20 ms writes to the virtual mic driver.
+/// Smooths irregular TCP chunks into steady writes to the virtual mic driver.
+///
+/// Discord/WASAPI reads at a fixed rate from a ~40 ms kernel ring. TCP arrives in
+/// bursts. Without this buffer, bursts → ring underrun → silence gaps → stutter.
+///
+/// Do NOT reduce PrefillMs, add latency trimming, or inject silence frames here —
+/// those changes reintroduce stutter. Latency is controlled only by monitor buffer.
 /// </summary>
 internal sealed class DriverPcmFeedBuffer : IDisposable
 {
-    private const int BytesPerMs = AudioConstants.SampleRate * 2 / 1000;
+    /// <summary>Proven stable prefill — do not lower without measuring Discord underruns.</summary>
     private const int PrefillMs = 120;
+
     private const int FeedIntervalMs = 10;
     private const int FeedMs = 20;
+    private const int BytesPerMs = AudioConstants.SampleRate * 2 / 1000;
     private static readonly int PrefillBytes = BytesPerMs * PrefillMs;
     private static readonly int FeedChunkBytes = BytesPerMs * FeedMs;
     private static readonly int CapacityBytes = AudioConstants.SampleRate * 2 * 4;
@@ -48,6 +56,14 @@ internal sealed class DriverPcmFeedBuffer : IDisposable
         {
             _timer?.Dispose();
             _timer = null;
+            ResetBuffer();
+        }
+    }
+
+    public void Flush()
+    {
+        lock (_gate)
+        {
             ResetBuffer();
         }
     }

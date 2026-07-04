@@ -23,6 +23,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IVirtualCameraService, VirtualCameraService>();
         services.AddSingleton<IAppBootstrapService, AppBootstrapService>();
         services.AddSingleton<IAudioOutputSettingsService, AudioOutputSettingsService>();
+        services.AddSingleton<IHotkeySettingsService, HotkeySettingsService>();
         services.AddSingleton<IAudioEffectsService, AudioEffectsService>();
         services.AddSingleton<IAudioPlaybackService, PcmPlaybackService>();
         services.AddSingleton<AudioTcpServer>();

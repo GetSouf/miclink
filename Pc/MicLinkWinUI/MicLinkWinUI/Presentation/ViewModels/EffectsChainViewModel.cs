@@ -198,6 +198,47 @@ public partial class EffectsChainViewModel : ObservableObject
         PersistChain();
     }
 
+    public void MoveSlot(EffectSlotViewModel slot, int targetIndex)
+    {
+        if (_isLoading)
+        {
+            return;
+        }
+
+        var currentIndex = Chain.IndexOf(slot);
+        if (currentIndex < 0 || targetIndex < 0 || targetIndex > Chain.Count)
+        {
+            return;
+        }
+
+        if (currentIndex == targetIndex || currentIndex + 1 == targetIndex)
+        {
+            return;
+        }
+
+        Chain.RemoveAt(currentIndex);
+        if (targetIndex > currentIndex)
+        {
+            targetIndex--;
+        }
+
+        Chain.Insert(Math.Clamp(targetIndex, 0, Chain.Count), slot);
+        SelectedSlot = slot;
+        PersistChain();
+    }
+
+    public void RemoveSlot(EffectSlotViewModel slot)
+    {
+        if (_isLoading || !Chain.Contains(slot))
+        {
+            return;
+        }
+
+        Chain.Remove(slot);
+        SelectedSlot = Chain.FirstOrDefault();
+        PersistChain();
+    }
+
     public void OnSlotEnabledChanged(EffectSlotViewModel slot)
     {
         if (_isLoading)
@@ -416,9 +457,17 @@ public partial class EffectParameterViewModel : ObservableObject
     [ObservableProperty]
     private float _value;
 
+    public string ValueDisplay => FormatValue(Value);
+
     partial void OnValueChanged(float value)
     {
+        OnPropertyChanged(nameof(ValueDisplay));
         _slot.SetParameter(Key, value);
         _slot.NotifyPersist();
     }
+
+    private string FormatValue(float value) =>
+        Math.Abs(value - MathF.Round(value)) < 0.05f
+            ? MathF.Round(value).ToString("0")
+            : value.ToString("0.0");
 }

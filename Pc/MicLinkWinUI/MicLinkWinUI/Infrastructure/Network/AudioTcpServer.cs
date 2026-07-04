@@ -54,8 +54,15 @@ public sealed class AudioTcpServer : IAsyncDisposable
     private async Task HandleClientAsync(TcpClient client, CancellationToken cancellationToken)
     {
         _logService.Info("Аудиопоток подключён");
-        _playback.Stop();
-        _playback.Start();
+
+        if (!_playback.IsActive)
+        {
+            _playback.Start();
+        }
+        else
+        {
+            _playback.ResetForNewStream();
+        }
 
         try
         {
@@ -91,7 +98,7 @@ public sealed class AudioTcpServer : IAsyncDisposable
         }
         finally
         {
-            _playback.Stop();
+            _playback.ResetForNewStream();
             client.Dispose();
             _logService.Info("Аудиопоток остановлен");
         }

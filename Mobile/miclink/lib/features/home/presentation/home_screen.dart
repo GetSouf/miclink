@@ -17,6 +17,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late final HomeController _controller;
   final _pinController = TextEditingController();
+  bool _isResetting = false;
 
   @override
   void initState() {
@@ -40,23 +41,42 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _resetConnection() async {
+    if (_isResetting) {
+      return;
+    }
+
+    setState(() => _isResetting = true);
     _pinController.clear();
-    await _controller.resetConnection();
+    try {
+      await _controller.resetConnection();
+    } finally {
+      if (mounted) {
+        setState(() => _isResetting = false);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final info = _controller.info;
     final isConnected = _controller.isConnected;
+    final showPairing = !isConnected;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(AppConstants.appName),
         actions: [
-          IconButton(
-            tooltip: 'Сбросить подключение',
-            onPressed: _controller.isBusyConnecting ? null : _resetConnection,
-            icon: const Icon(Icons.restart_alt_rounded),
+          TextButton.icon(
+            onPressed: _isResetting ? null : _resetConnection,
+            icon: _isResetting
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.restart_alt_rounded),
+            label: const Text('Сброс'),
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
           ),
         ],
       ),
@@ -68,8 +88,22 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               children: [
                 ConnectionStatusCard(info: info),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _isResetting ? null : _resetConnection,
+                    icon: const Icon(Icons.restart_alt_rounded),
+                    label: Text(_isResetting ? 'Сброс…' : 'Сбросить подключение'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.danger,
+                      side: const BorderSide(color: AppColors.danger),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
+                ),
                 if (isConnected) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   OutlinedButton.icon(
                     onPressed: _controller.disconnect,
                     icon: const Icon(Icons.link_off_rounded),
@@ -80,20 +114,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    onPressed: _controller.isBusyConnecting ? null : _resetConnection,
-                    icon: const Icon(Icons.restart_alt_rounded),
-                    label: const Text('Сбросить подключение'),
-                  ),
                 ],
-                if (!isConnected) ...[
+                if (showPairing) ...[
                   const SizedBox(height: 16),
                   _PairingPanel(
                     pinController: _pinController,
                     errorMessage: _controller.errorMessage,
                     onConnect: _connect,
-                    onReset: _resetConnection,
                     pcName: info.pcName,
                     isBusy: _controller.isBusyConnecting,
                     hint: _pairingHint(info.status),
@@ -142,7 +169,6 @@ class _PairingPanel extends StatelessWidget {
   const _PairingPanel({
     required this.pinController,
     required this.onConnect,
-    required this.onReset,
     required this.hint,
     this.errorMessage,
     this.pcName,
@@ -151,7 +177,6 @@ class _PairingPanel extends StatelessWidget {
 
   final TextEditingController pinController;
   final VoidCallback onConnect;
-  final VoidCallback onReset;
   final String hint;
   final String? errorMessage;
   final String? pcName;
@@ -221,11 +246,6 @@ class _PairingPanel extends StatelessWidget {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Text('Подключить'),
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton(
-            onPressed: isBusy ? null : onReset,
-            child: const Text('Сбросить подключение'),
           ),
         ],
       ),

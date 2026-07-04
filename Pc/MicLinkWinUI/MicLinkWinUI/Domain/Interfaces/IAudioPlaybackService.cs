@@ -9,5 +9,9 @@ public interface IAudioPlaybackService
 
     void Start();
     void Stop();
+
+    /// <summary>Flushes jitter buffers when a new audio TCP session starts without reopening the driver.</summary>
+    void ResetForNewStream();
+
     void PushPcm(ReadOnlySpan<byte> pcm);
 }

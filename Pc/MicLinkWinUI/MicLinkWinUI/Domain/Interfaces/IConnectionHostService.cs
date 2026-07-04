@@ -14,4 +14,7 @@ public interface IConnectionHostService
 
     Task StartAsync(CancellationToken cancellationToken = default);
     Task StopAsync();
+
+    Task SetMicrophoneMutedAsync(bool muted);
+    Task SetCameraMutedAsync(bool muted);
 }

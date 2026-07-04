@@ -14,6 +14,7 @@ class PairingClient {
   bool _suppressDisconnect = false;
 
   void Function()? onDisconnected;
+  void Function(Map<String, dynamic> message)? onControlMessage;
 
   bool get isConnected => _socket != null;
 
@@ -149,6 +150,11 @@ class PairingClient {
       final type = message['type'] as String?;
       if (type != null && _responseWaiters.containsKey(type)) {
         _responseWaiters.remove(type)?.complete(message);
+        continue;
+      }
+
+      if (type != null) {
+        onControlMessage?.call(message);
       }
     }
   }
