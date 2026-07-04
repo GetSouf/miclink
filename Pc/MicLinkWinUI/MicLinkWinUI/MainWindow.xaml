@@ -232,19 +232,27 @@
                                     </Border>
                                     <FontIcon Glyph="&#xE76C;" Foreground="{StaticResource MutedTextBrush}" />
                                 </StackPanel>
-                                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" AllowDrop="True"
+                                              DragOver="ChainList_DragOver" Drop="ChainList_Drop">
                                     <ListView x:Name="ChainList"
                                               ItemsSource="{x:Bind EffectsChainViewModel.Chain, Mode=OneWay}"
                                               SelectedItem="{x:Bind EffectsChainViewModel.SelectedSlot, Mode=TwoWay}"
                                               SelectionMode="Single"
-                                              CanReorderItems="True"
+                                              CanReorderItems="False"
                                               AllowDrop="True"
-                                              DragItemsStarting="ChainList_DragItemsStarting"
-                                              DragItemsCompleted="ChainList_DragItemsCompleted">
+                                              DragOver="ChainList_DragOver"
+                                              Drop="ChainList_Drop">
+                                        <ListView.ItemContainerTransitions>
+                                            <TransitionCollection>
+                                                <RepositionThemeTransition />
+                                            </TransitionCollection>
+                                        </ListView.ItemContainerTransitions>
                                         <ListView.ItemContainerStyle>
                                             <Style TargetType="ListViewItem">
                                                 <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                                                 <Setter Property="Padding" Value="0,0,0,8" />
+                                                <Setter Property="CanDrag" Value="True" />
+                                                <Setter Property="AllowDrop" Value="True" />
                                             </Style>
                                         </ListView.ItemContainerStyle>
                                         <ListView.ItemTemplate>
@@ -281,42 +289,20 @@
                         </Border>
 
                         <!-- Parameters -->
-                        <Border Grid.Column="2" Style="{StaticResource CardStyle}">
+                        <Border Grid.Column="2" x:Name="FxParamsCard" Style="{StaticResource CardStyle}">
                             <Grid>
                                 <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
                                 <TextBlock Style="{StaticResource SectionTitleStyle}" Text="ПАРАМЕТРЫ" />
-                                <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,8,0,8">
+                                <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,8,0,12">
                                     <Button Content="↑" Command="{x:Bind EffectsChainViewModel.MoveSelectedUpCommand}" />
                                     <Button Content="↓" Command="{x:Bind EffectsChainViewModel.MoveSelectedDownCommand}" />
                                     <Button Content="Удалить" Command="{x:Bind EffectsChainViewModel.RemoveSelectedCommand}" />
                                 </StackPanel>
-                                <Border x:Name="FxDeleteZone" Grid.Row="2"
-                                        Margin="0,0,0,12"
-                                        Padding="14,12"
-                                        CornerRadius="8"
-                                        BorderThickness="2"
-                                        BorderBrush="#55E74C3C"
-                                        Background="{ThemeResource SurfaceBrush}"
-                                        AllowDrop="True"
-                                        DragOver="FxDeleteZone_DragOver"
-                                        DragLeave="FxDeleteZone_DragLeave"
-                                        Drop="FxDeleteZone_Drop">
-                                    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
-                                        <FontIcon x:Name="FxDeleteZoneIcon" Glyph="&#xE74D;" FontSize="18" Foreground="#FFE74C3C" />
-                                        <TextBlock x:Name="FxDeleteZoneLabel"
-                                                   Text="Перетащите эффект сюда для удаления"
-                                                   Foreground="{StaticResource MutedTextBrush}"
-                                                   FontSize="12"
-                                                   TextWrapping="WrapWholeWords"
-                                                   VerticalAlignment="Center" />
-                                    </StackPanel>
-                                </Border>
-                                <ScrollViewer Grid.Row="3">
+                                <ScrollViewer Grid.Row="2">
                                     <StackPanel Spacing="12">
                                         <ItemsControl ItemsSource="{x:Bind EffectsChainViewModel.SelectedSlot.Parameters, Mode=OneWay}">
                                             <ItemsControl.ItemTemplate>
@@ -340,6 +326,36 @@
                                                    Text="VST добавлен в цепочку. Обработка через VST host будет в следующей версии — сейчас pass-through." />
                                     </StackPanel>
                                 </ScrollViewer>
+
+                                <Border x:Name="FxParamsDragOverlay" Grid.RowSpan="3"
+                                        Visibility="Collapsed" AllowDrop="True"
+                                        CornerRadius="12"
+                                        Background="#D9121218"
+                                        BorderThickness="3"
+                                        BorderBrush="#66E74C3C"
+                                        DragOver="FxParamsDragOverlay_DragOver"
+                                        DragLeave="FxParamsDragOverlay_DragLeave"
+                                        Drop="FxParamsDragOverlay_Drop">
+                                    <Grid>
+                                        <Canvas x:Name="FxDragNoiseCanvas" IsHitTestVisible="False" Opacity="0.35" />
+                                        <Border IsHitTestVisible="False"
+                                                BorderThickness="1"
+                                                BorderBrush="#44FF6B6B"
+                                                CornerRadius="10"
+                                                Margin="6" />
+                                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="14">
+                                            <FontIcon x:Name="FxDeleteIcon" Glyph="&#xE74D;" FontSize="42" Foreground="#FFE74C3C" />
+                                            <TextBlock x:Name="FxDeleteHint"
+                                                       Text="Отпустите — удалить эффект"
+                                                       Foreground="#FFFF8A80"
+                                                       FontWeight="SemiBold"
+                                                       FontSize="14"
+                                                       HorizontalAlignment="Center"
+                                                       TextWrapping="WrapWholeWords"
+                                                       TextAlignment="Center" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
                             </Grid>
                         </Border>
                     </Grid>

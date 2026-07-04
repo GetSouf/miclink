@@ -198,31 +198,26 @@ public partial class EffectsChainViewModel : ObservableObject
         PersistChain();
     }
 
-    public void MoveSlot(EffectSlotViewModel slot, int targetIndex)
+    public void MoveSlot(EffectSlotViewModel slot, int insertIndex)
     {
         if (_isLoading)
         {
             return;
         }
 
-        var currentIndex = Chain.IndexOf(slot);
-        if (currentIndex < 0 || targetIndex < 0 || targetIndex > Chain.Count)
+        var from = Chain.IndexOf(slot);
+        if (from < 0 || insertIndex < 0 || insertIndex > Chain.Count)
         {
             return;
         }
 
-        if (currentIndex == targetIndex || currentIndex + 1 == targetIndex)
+        if (from == insertIndex || from + 1 == insertIndex)
         {
             return;
         }
 
-        Chain.RemoveAt(currentIndex);
-        if (targetIndex > currentIndex)
-        {
-            targetIndex--;
-        }
-
-        Chain.Insert(Math.Clamp(targetIndex, 0, Chain.Count), slot);
+        var to = insertIndex > from ? insertIndex - 1 : insertIndex;
+        Chain.Move(from, to);
         SelectedSlot = slot;
         PersistChain();
     }
