@@ -25,6 +25,7 @@ private:
     ULONG   m_writePos;
     ULONG   m_readPos;
     ULONG   m_available;
+    SHORT   m_lastSample;
     KSPIN_LOCK m_lock;
 };
 

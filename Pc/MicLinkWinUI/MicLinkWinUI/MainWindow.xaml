@@ -232,27 +232,27 @@
                                     </Border>
                                     <FontIcon Glyph="&#xE76C;" Foreground="{StaticResource MutedTextBrush}" />
                                 </StackPanel>
-                                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" AllowDrop="True"
-                                              DragOver="ChainList_DragOver" Drop="ChainList_Drop">
+                                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
                                     <ListView x:Name="ChainList"
                                               ItemsSource="{x:Bind EffectsChainViewModel.Chain, Mode=OneWay}"
                                               SelectedItem="{x:Bind EffectsChainViewModel.SelectedSlot, Mode=TwoWay}"
                                               SelectionMode="Single"
-                                              CanReorderItems="False"
+                                              CanDragItems="True"
+                                              CanReorderItems="True"
                                               AllowDrop="True"
-                                              DragOver="ChainList_DragOver"
-                                              Drop="ChainList_Drop">
+                                              DragItemsStarting="ChainList_DragItemsStarting"
+                                              DragItemsCompleted="ChainList_DragItemsCompleted"
+                                              ContainerContentChanging="ChainList_ContainerContentChanging">
                                         <ListView.ItemContainerTransitions>
                                             <TransitionCollection>
-                                                <RepositionThemeTransition />
+                                                <AddDeleteThemeTransition />
                                             </TransitionCollection>
                                         </ListView.ItemContainerTransitions>
                                         <ListView.ItemContainerStyle>
                                             <Style TargetType="ListViewItem">
                                                 <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                                                 <Setter Property="Padding" Value="0,0,0,8" />
-                                                <Setter Property="CanDrag" Value="True" />
-                                                <Setter Property="AllowDrop" Value="True" />
+                                                <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
                                             </Style>
                                         </ListView.ItemContainerStyle>
                                         <ListView.ItemTemplate>
@@ -297,12 +297,12 @@
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
                                 <TextBlock Style="{StaticResource SectionTitleStyle}" Text="ПАРАМЕТРЫ" />
-                                <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,8,0,12">
+                                <StackPanel x:Name="FxParamsToolbar" Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,8,0,12">
                                     <Button Content="↑" Command="{x:Bind EffectsChainViewModel.MoveSelectedUpCommand}" />
                                     <Button Content="↓" Command="{x:Bind EffectsChainViewModel.MoveSelectedDownCommand}" />
                                     <Button Content="Удалить" Command="{x:Bind EffectsChainViewModel.RemoveSelectedCommand}" />
                                 </StackPanel>
-                                <ScrollViewer Grid.Row="2">
+                                <ScrollViewer x:Name="FxParamsContent" Grid.Row="2">
                                     <StackPanel Spacing="12">
                                         <ItemsControl ItemsSource="{x:Bind EffectsChainViewModel.SelectedSlot.Parameters, Mode=OneWay}">
                                             <ItemsControl.ItemTemplate>

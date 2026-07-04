@@ -4,19 +4,13 @@ using MicLinkWinUI.Core.Constants;
 using MicLinkWinUI.Domain.Interfaces;
 
 /// <summary>
-/// Smooths irregular TCP chunks into steady writes to the virtual mic driver.
-///
-/// Discord/WASAPI reads at a fixed rate from a ~40 ms kernel ring. TCP arrives in
-/// bursts. Without this buffer, bursts → ring underrun → silence gaps → stutter.
-///
-/// Do NOT reduce PrefillMs, add latency trimming, or inject silence frames here —
-/// those changes reintroduce stutter. Latency is controlled only by monitor buffer.
+/// Smooths irregular TCP chunks into steady 20 ms writes to the virtual mic driver.
+/// Discord/WASAPI expects a continuous clock — partial frames and timer jitter cause
+/// micro-gaps that sound like radio static (monitor output masks this with its buffer).
 /// </summary>
 internal sealed class DriverPcmFeedBuffer : IDisposable
 {
-    /// <summary>Proven stable prefill — do not lower without measuring Discord underruns.</summary>
     private const int PrefillMs = 120;
-
     private const int FeedIntervalMs = 10;
     private const int FeedMs = 20;
     private const int BytesPerMs = AudioConstants.SampleRate * 2 / 1000;
@@ -94,9 +88,6 @@ internal sealed class DriverPcmFeedBuffer : IDisposable
 
     private void FeedTick(object? _)
     {
-        byte[] chunk;
-        int length;
-
         lock (_gate)
         {
             if (_timer is null)
@@ -114,29 +105,21 @@ internal sealed class DriverPcmFeedBuffer : IDisposable
                 _primed = true;
             }
 
-            length = Math.Min(FeedChunkBytes, _available);
-            if (length == 0)
+            if (_available < FeedChunkBytes)
             {
                 return;
             }
 
-            for (var i = 0; i < length; ++i)
+            for (var i = 0; i < FeedChunkBytes; ++i)
             {
                 _feedScratch[i] = _buffer[_readPos];
                 _readPos = (_readPos + 1) % _buffer.Length;
             }
 
-            _available -= length;
-            chunk = _feedScratch;
+            _available -= FeedChunkBytes;
         }
 
-        if (!_driver.TryWritePcm(chunk.AsSpan(0, length)))
-        {
-            lock (_gate)
-            {
-                _primed = false;
-            }
-        }
+        _driver.TryWritePcm(_feedScratch);
     }
 
     private void ResetBuffer()

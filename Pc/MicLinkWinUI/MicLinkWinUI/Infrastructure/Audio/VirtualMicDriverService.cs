@@ -132,21 +132,28 @@ public sealed class VirtualMicDriverService : IVirtualMicDriverService, IDisposa
             return false;
         }
 
-        var buffer = pcm.ToArray();
-        var ok = MicLinkNative.DeviceIoControl(
-            handle,
-            MicLinkNative.IoctlWritePcm,
-            buffer,
-            buffer.Length,
-            nint.Zero,
-            0,
-            out _,
-            nint.Zero);
-
-        if (!ok)
+        var offset = 0;
+        while (offset < pcm.Length)
         {
-            _logService.Warning($"Ошибка записи в {AppConstants.VirtualMicName}");
-            return false;
+            var chunkLength = Math.Min(pcm.Length - offset, 8192);
+            var buffer = pcm.Slice(offset, chunkLength).ToArray();
+            var ok = MicLinkNative.DeviceIoControl(
+                handle,
+                MicLinkNative.IoctlWritePcm,
+                buffer,
+                buffer.Length,
+                nint.Zero,
+                0,
+                out var bytesTransferred,
+                nint.Zero);
+
+            if (!ok || bytesTransferred == 0)
+            {
+                _logService.Warning($"Ошибка записи в {AppConstants.VirtualMicName}");
+                return false;
+            }
+
+            offset += (int)bytesTransferred;
         }
 
         return true;

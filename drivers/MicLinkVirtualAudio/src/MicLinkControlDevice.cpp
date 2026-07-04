@@ -74,7 +74,7 @@ extern "C" NTSTATUS MicLinkControlDeviceRegister(_In_ PDRIVER_OBJECT DriverObjec
     RtlInitUnicodeString(&deviceName, MICLINK_KERNEL_DEVICE_NAME);
     RtlInitUnicodeString(&symLink, MICLINK_DOS_DEVICE_NAME);
 
-    NTSTATUS status = g_MicLinkRingBuffer.Initialize(MICLINK_SAMPLE_RATE * MICLINK_BYTES_PER_FRAME);
+    NTSTATUS status = g_MicLinkRingBuffer.Initialize(MICLINK_RING_BUFFER_BYTES);
     if (!NT_SUCCESS(status))
     {
         return status;

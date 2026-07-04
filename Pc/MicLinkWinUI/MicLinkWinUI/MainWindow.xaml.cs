@@ -4,12 +4,16 @@ using MicLinkWinUI.Domain.Enums;
 using MicLinkWinUI.Domain.Interfaces;
 using MicLinkWinUI.Infrastructure.Theming;
 using MicLinkWinUI.Presentation.ViewModels;
+using Microsoft.UI.Composition;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Shapes;
+using System.Runtime.InteropServices;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Foundation;
 
@@ -26,10 +30,21 @@ public sealed partial class MainWindow : Window
     public string CameraDeviceName => AppConstants.VirtualCameraName;
 
     private EffectSlotViewModel? _dragSlot;
-    private ListViewItem? _dragOverItem;
     private bool _isFxDragging;
     private bool _deleteOverlayHover;
+    private bool _overlayHideRunning;
+    private ListViewItem? _draggedContainer;
+    private double _draggedPlaceholderHeight;
     private readonly Random _noiseRandom = new();
+
+    private const int ReorderAnimMs = 120;
+    private const int OverlayFadeInMs = 70;
+    private const int OverlayFadeOutMs = 180;
+    private const int ParamsRestoreMs = 200;
+    private const int ChainDragStartMs = 80;
+    private const int ChainRestoreMs = 140;
+    private const float ChainDragScale = 0.96f;
+    private const float DraggedPlaceholderOpacity = 0.38f;
 
     public MainWindow()
     {
@@ -65,47 +80,6 @@ public sealed partial class MainWindow : Window
         MainNav.SelectedItem = MainNav.MenuItems[0];
         ShowSection("mic");
         UpdateMicMuteIcon();
-
-        ChainList.ContainerContentChanging += ChainList_ContainerContentChanging;
-    }
-
-    private void ChainList_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
-    {
-        if (args.ItemContainer is not ListViewItem item)
-        {
-            return;
-        }
-
-        if (args.InRecycleQueue)
-        {
-            DetachChainItemHandlers(item);
-            return;
-        }
-
-        args.RegisterUpdateCallback((_, changingArgs) =>
-        {
-            if (changingArgs.ItemContainer is ListViewItem listItem)
-            {
-                DetachChainItemHandlers(listItem);
-                AttachChainItemHandlers(listItem);
-            }
-        });
-    }
-
-    private void AttachChainItemHandlers(ListViewItem item)
-    {
-        item.DragStarting += ChainItem_DragStarting;
-        item.DragOver += ChainItem_DragOver;
-        item.DragLeave += ChainItem_DragLeave;
-        item.Drop += ChainItem_Drop;
-    }
-
-    private void DetachChainItemHandlers(ListViewItem item)
-    {
-        item.DragStarting -= ChainItem_DragStarting;
-        item.DragOver -= ChainItem_DragOver;
-        item.DragLeave -= ChainItem_DragLeave;
-        item.Drop -= ChainItem_Drop;
     }
 
     private void MainNav_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -183,92 +157,192 @@ public sealed partial class MainWindow : Window
         MicMuteButton.IsChecked = ViewModel.IsMicrophoneMuted;
     }
 
-    private void ChainItem_DragStarting(object sender, DragStartingEventArgs e)
+    private void ChainList_DragItemsStarting(object sender, DragItemsStartingEventArgs args)
     {
-        if (sender is not ListViewItem { Content: EffectSlotViewModel slot })
+        if (args.Items.FirstOrDefault() is not EffectSlotViewModel slot)
         {
             return;
         }
 
         _dragSlot = slot;
         _isFxDragging = true;
-        e.Data.SetText(slot.SlotId);
-        e.DragUI.SetContentFromDataPackage();
-        ShowParamsDragOverlay();
+        _deleteOverlayHover = false;
+        ShowDeleteOverlay();
+        BeginChainDragVisuals(slot);
     }
 
-    private void ChainItem_DragOver(object sender, DragEventArgs e)
+    private void ChainList_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
     {
-        if (!_isFxDragging || _dragSlot is null)
+        if (args.InRecycleQueue)
         {
-            return;
-        }
-
-        e.AcceptedOperation = DataPackageOperation.Move;
-        e.DragUIOverride.Caption = "Переместить";
-        e.Handled = true;
-
-        if (sender is ListViewItem item &&
-            item.Content is EffectSlotViewModel target &&
-            !ReferenceEquals(_dragSlot, target))
-        {
-            SetDragOverItem(item);
-        }
-    }
-
-    private void ChainItem_DragLeave(object sender, DragEventArgs e)
-    {
-        if (sender is ListViewItem item && ReferenceEquals(_dragOverItem, item))
-        {
-            ClearDragOverItem();
-        }
-    }
-
-    private void ChainItem_Drop(object sender, DragEventArgs e)
-    {
-        if (!_isFxDragging || _dragSlot is null)
-        {
-            EndFxDrag();
-            return;
-        }
-
-        if (sender is ListViewItem { Content: EffectSlotViewModel target } &&
-            !ReferenceEquals(_dragSlot, target))
-        {
-            var insertIndex = EffectsChainViewModel.Chain.IndexOf(target);
-            if (e.GetPosition((UIElement)sender).Y > ((FrameworkElement)sender).ActualHeight / 2)
+            if (args.ItemContainer is ListViewItem recycled)
             {
-                insertIndex++;
+                recycled.DragStarting -= ChainItem_DragStarting;
             }
 
-            EffectsChainViewModel.MoveSlot(_dragSlot, insertIndex);
-        }
-
-        e.Handled = true;
-        EndFxDrag();
-    }
-
-    private void ChainList_DragOver(object sender, DragEventArgs e)
-    {
-        if (!_isFxDragging || _dragSlot is null)
-        {
             return;
         }
 
-        e.AcceptedOperation = DataPackageOperation.Move;
-        e.Handled = true;
+        args.RegisterUpdateCallback((_, changingArgs) =>
+        {
+            if (changingArgs.ItemContainer is not ListViewItem item)
+            {
+                return;
+            }
+
+            item.DragStarting -= ChainItem_DragStarting;
+            item.DragStarting += ChainItem_DragStarting;
+            ApplyFastReorderAnimation(item);
+        });
     }
 
-    private void ChainList_Drop(object sender, DragEventArgs e)
+    private void ChainItem_DragStarting(object sender, DragStartingEventArgs args)
     {
-        if (!_isFxDragging || _dragSlot is null)
+        args.AllowedOperations = DataPackageOperation.Move;
+    }
+
+    private static void ApplyFastReorderAnimation(ListViewItem item)
+    {
+        var visual = ElementCompositionPreview.GetElementVisual(item);
+        var compositor = visual.Compositor;
+        UpdateVisualCenter(item, visual);
+
+        var offsetAnimation = compositor.CreateVector3KeyFrameAnimation();
+        offsetAnimation.Target = "Offset";
+        offsetAnimation.InsertExpressionKeyFrame(1.0f, "this.FinalValue");
+        offsetAnimation.Duration = TimeSpan.FromMilliseconds(ReorderAnimMs);
+
+        var collection = compositor.CreateImplicitAnimationCollection();
+        collection["Offset"] = offsetAnimation;
+        visual.ImplicitAnimations = collection;
+    }
+
+    private void BeginChainDragVisuals(EffectSlotViewModel slot)
+    {
+        ForEachChainContainer((item, _) =>
+        {
+            AnimateItemScale(item, ChainDragScale, ChainDragStartMs);
+        });
+
+        var queue = DispatcherQueue.GetForCurrentThread();
+        queue.TryEnqueue(() =>
+        {
+            if (!_isFxDragging || _dragSlot != slot)
+            {
+                return;
+            }
+
+            if (ChainList.ContainerFromItem(slot) is not ListViewItem container)
+            {
+                return;
+            }
+
+            _draggedContainer = container;
+            _draggedPlaceholderHeight = container.ActualHeight > 0 ? container.ActualHeight : 56;
+            ApplyDraggedPlaceholder(container);
+
+            queue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+            {
+                if (_draggedContainer == container && _isFxDragging)
+                {
+                    ApplyDraggedPlaceholder(container);
+                }
+            });
+        });
+    }
+
+    private void ApplyDraggedPlaceholder(ListViewItem container)
+    {
+        container.MinHeight = _draggedPlaceholderHeight > 0 ? _draggedPlaceholderHeight : 56;
+        AnimateItemScale(container, ChainDragScale, ChainDragStartMs);
+        AnimateItemOpacity(container, DraggedPlaceholderOpacity, ChainDragStartMs);
+    }
+
+    private void RestoreChainItemVisuals()
+    {
+        ForEachChainContainer((item, _) =>
+        {
+            item.MinHeight = 0;
+            AnimateItemScale(item, 1f, ChainRestoreMs);
+            AnimateItemOpacity(item, 1.0, ChainRestoreMs);
+        });
+
+        if (_draggedContainer is { } dragged)
+        {
+            dragged.MinHeight = 0;
+            AnimateItemScale(dragged, 1f, ChainRestoreMs);
+            AnimateItemOpacity(dragged, 1.0, ChainRestoreMs);
+        }
+
+        _draggedContainer = null;
+        _draggedPlaceholderHeight = 0;
+    }
+
+    private void ForEachChainContainer(Action<ListViewItem, EffectSlotViewModel> action)
+    {
+        foreach (var slot in EffectsChainViewModel.Chain)
+        {
+            if (ChainList.ContainerFromItem(slot) is ListViewItem item)
+            {
+                action(item, slot);
+            }
+        }
+    }
+
+    private static void UpdateVisualCenter(ListViewItem item, Microsoft.UI.Composition.Visual visual)
+    {
+        var width = (float)Math.Max(item.ActualWidth, 1);
+        var height = (float)Math.Max(item.ActualHeight, 1);
+        visual.CenterPoint = new System.Numerics.Vector3(width * 0.5f, height * 0.5f, 0);
+    }
+
+    private static void AnimateItemScale(ListViewItem item, float toScale, int durationMs)
+    {
+        var visual = ElementCompositionPreview.GetElementVisual(item);
+        UpdateVisualCenter(item, visual);
+        var compositor = visual.Compositor;
+
+        var animation = compositor.CreateVector3KeyFrameAnimation();
+        animation.Target = "Scale";
+        animation.InsertKeyFrame(0, visual.Scale);
+        animation.InsertKeyFrame(1, new System.Numerics.Vector3(toScale, toScale, 1));
+        animation.Duration = TimeSpan.FromMilliseconds(durationMs);
+        visual.StartAnimation("Scale", animation);
+    }
+
+    private static void AnimateItemOpacity(ListViewItem item, double toOpacity, int durationMs)
+    {
+        var animation = new DoubleAnimation
+        {
+            To = toOpacity,
+            Duration = TimeSpan.FromMilliseconds(durationMs),
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+        };
+        Storyboard.SetTarget(animation, item);
+        Storyboard.SetTargetProperty(animation, "Opacity");
+        var storyboard = new Storyboard();
+        storyboard.Children.Add(animation);
+        storyboard.Begin();
+    }
+
+    private void ChainList_DragItemsCompleted(object sender, DragItemsCompletedEventArgs args)
+    {
+        if (_dragSlot is null)
         {
             EndFxDrag();
             return;
         }
 
-        EffectsChainViewModel.MoveSlot(_dragSlot, EffectsChainViewModel.Chain.Count);
-        e.Handled = true;
+        if (_deleteOverlayHover || IsPointerOverDeleteOverlay())
+        {
+            EffectsChainViewModel.RemoveSlot(_dragSlot);
+        }
+        else if (EffectsChainViewModel.Chain.Contains(_dragSlot))
+        {
+            var queue = DispatcherQueue.GetForCurrentThread();
+            queue.TryEnqueue(DispatcherQueuePriority.Low, EffectsChainViewModel.OnChainReordered);
+        }
+
         EndFxDrag();
     }
 
@@ -301,33 +375,91 @@ public sealed partial class MainWindow : Window
         EndFxDrag();
     }
 
-    private void ShowParamsDragOverlay()
+    private void ShowDeleteOverlay()
     {
         PopulateDragNoise();
         FxParamsDragOverlay.Visibility = Visibility.Visible;
         FxParamsDragOverlay.Opacity = 0;
         SetDeleteOverlayHover(false);
 
-        var fadeIn = new DoubleAnimation
+        AnimateDouble(FxParamsDragOverlay, 0, 1, OverlayFadeInMs, EasingMode.EaseOut);
+        AnimateDouble(FxParamsToolbar, FxParamsToolbar.Opacity, 0.35, OverlayFadeInMs, EasingMode.EaseOut);
+        AnimateDouble(FxParamsContent, FxParamsContent.Opacity, 0.35, OverlayFadeInMs, EasingMode.EaseOut);
+    }
+
+    private void HideDeleteOverlay()
+    {
+        if (_overlayHideRunning || FxParamsDragOverlay.Visibility != Visibility.Visible)
         {
-            From = 0,
-            To = 1,
-            Duration = TimeSpan.FromMilliseconds(180),
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
-        };
-        Storyboard.SetTarget(fadeIn, FxParamsDragOverlay);
-        Storyboard.SetTargetProperty(fadeIn, "Opacity");
+            ResetDeleteOverlayVisuals();
+            return;
+        }
+
+        _overlayHideRunning = true;
+        var easing = new CubicEase { EasingMode = EasingMode.EaseInOut };
+
         var storyboard = new Storyboard();
-        storyboard.Children.Add(fadeIn);
+        storyboard.Completed += (_, _) =>
+        {
+            ResetDeleteOverlayVisuals();
+            _overlayHideRunning = false;
+        };
+
+        AddFade(storyboard, FxParamsDragOverlay, FxParamsDragOverlay.Opacity, 0, OverlayFadeOutMs, easing);
+        AddFade(storyboard, FxParamsToolbar, FxParamsToolbar.Opacity, 1, ParamsRestoreMs, easing);
+        AddFade(storyboard, FxParamsContent, FxParamsContent.Opacity, 1, ParamsRestoreMs, easing);
         storyboard.Begin();
     }
 
-    private void HideParamsDragOverlay()
+    private void ResetDeleteOverlayVisuals()
     {
         FxParamsDragOverlay.Visibility = Visibility.Collapsed;
         FxParamsDragOverlay.Opacity = 1;
+        FxParamsToolbar.Opacity = 1;
+        FxParamsContent.Opacity = 1;
         FxDragNoiseCanvas.Children.Clear();
         SetDeleteOverlayHover(false);
+    }
+
+    private static void AnimateDouble(
+        UIElement target,
+        double from,
+        double to,
+        int durationMs,
+        EasingMode easingMode)
+    {
+        var animation = new DoubleAnimation
+        {
+            From = from,
+            To = to,
+            Duration = TimeSpan.FromMilliseconds(durationMs),
+            EasingFunction = new CubicEase { EasingMode = easingMode },
+        };
+        Storyboard.SetTarget(animation, target);
+        Storyboard.SetTargetProperty(animation, "Opacity");
+        var storyboard = new Storyboard();
+        storyboard.Children.Add(animation);
+        storyboard.Begin();
+    }
+
+    private static void AddFade(
+        Storyboard storyboard,
+        UIElement target,
+        double from,
+        double to,
+        int durationMs,
+        EasingFunctionBase easing)
+    {
+        var animation = new DoubleAnimation
+        {
+            From = from,
+            To = to,
+            Duration = TimeSpan.FromMilliseconds(durationMs),
+            EasingFunction = easing,
+        };
+        Storyboard.SetTarget(animation, target);
+        Storyboard.SetTargetProperty(animation, "Opacity");
+        storyboard.Children.Add(animation);
     }
 
     private void PopulateDragNoise()
@@ -379,27 +511,51 @@ public sealed partial class MainWindow : Window
         FxDeleteHint.Text = hover ? "Отпустите — удалить" : "Перетащите сюда для удаления";
     }
 
-    private void SetDragOverItem(ListViewItem item)
+    private bool IsPointerOverDeleteOverlay()
     {
-        if (ReferenceEquals(_dragOverItem, item))
+        if (FxParamsDragOverlay.Visibility != Visibility.Visible)
         {
-            return;
+            return false;
         }
 
-        ClearDragOverItem();
-        _dragOverItem = item;
-        item.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(40, 231, 76, 60));
+        if (_deleteOverlayHover)
+        {
+            return true;
+        }
+
+        return IsPointInElement(FxParamsDragOverlay, GetCursorPoint());
     }
 
-    private void ClearDragOverItem()
+    private Point GetCursorPoint()
     {
-        if (_dragOverItem is null)
+        if (!GetCursorPos(out var cursor))
         {
-            return;
+            return new Point(double.MinValue, double.MinValue);
         }
 
-        _dragOverItem.Background = null;
-        _dragOverItem = null;
+        return new Point(cursor.X, cursor.Y);
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativePoint
+    {
+        public int X;
+        public int Y;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool GetCursorPos(out NativePoint lpPoint);
+
+    private static bool IsPointInElement(FrameworkElement element, Point point)
+    {
+        if (element.ActualWidth <= 0 || element.ActualHeight <= 0)
+        {
+            return false;
+        }
+
+        var transform = element.TransformToVisual(null);
+        var bounds = transform.TransformBounds(new Rect(0, 0, element.ActualWidth, element.ActualHeight));
+        return bounds.Contains(point);
     }
 
     private void EndFxDrag()
@@ -410,9 +566,9 @@ public sealed partial class MainWindow : Window
         }
 
         _isFxDragging = false;
+        RestoreChainItemVisuals();
         _dragSlot = null;
-        ClearDragOverItem();
-        HideParamsDragOverlay();
+        HideDeleteOverlay();
     }
 
     private void OnThemeChanged(object? sender, Domain.Models.ThemeSettings settings)

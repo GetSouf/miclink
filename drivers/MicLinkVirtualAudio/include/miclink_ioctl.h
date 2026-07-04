@@ -22,7 +22,10 @@
 #define MICLINK_SAMPLE_RATE          48000
 #define MICLINK_CHANNELS             1
 #define MICLINK_BITS_PER_SAMPLE      16
-#define MICLINK_BYTES_PER_FRAME      (MICLINK_CHANNELS * MICLINK_BITS_PER_SAMPLE / 8)
+#define MICLINK_BYTES_PER_SAMPLE     (MICLINK_BITS_PER_SAMPLE / 8)
+#define MICLINK_BYTES_PER_FRAME      (MICLINK_CHANNELS * MICLINK_BYTES_PER_SAMPLE)
 
-/* Max PCM queued in the driver ring before oldest samples are dropped (low latency). */
-#define MICLINK_MAX_LATENCY_MS       40
+/* Ring capacity: ~500 ms mono PCM at 48 kHz (jitter buffer for WASAPI capture). */
+#define MICLINK_RING_BUFFER_MS       500
+#define MICLINK_RING_BUFFER_BYTES \
+    (MICLINK_SAMPLE_RATE * MICLINK_BYTES_PER_FRAME * MICLINK_RING_BUFFER_MS / 1000)

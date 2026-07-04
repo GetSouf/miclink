@@ -63,96 +63,82 @@ class _HomeScreenState extends State<HomeScreen> {
     final showPairing = !isConnected;
 
     return Scaffold(
+      extendBodyBehindAppBar: false,
       appBar: AppBar(
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        centerTitle: true,
         title: Text(AppConstants.appName),
         actions: [
-          TextButton.icon(
-            onPressed: _isResetting ? null : _resetConnection,
-            icon: _isResetting
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.restart_alt_rounded),
-            label: const Text('Сброс'),
-            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: _ResetButton(
+              isResetting: _isResetting,
+              onPressed: _resetConnection,
+            ),
           ),
         ],
       ),
       body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.background),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: Column(
-              children: [
-                ConnectionStatusCard(info: info),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _isResetting ? null : _resetConnection,
-                    icon: const Icon(Icons.restart_alt_rounded),
-                    label: Text(_isResetting ? 'Сброс…' : 'Сбросить подключение'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.danger,
-                      side: const BorderSide(color: AppColors.danger),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                  ),
-                ),
-                if (isConnected) ...[
-                  const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    onPressed: _controller.disconnect,
-                    icon: const Icon(Icons.link_off_rounded),
-                    label: const Text('Отключиться'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.danger,
-                      side: const BorderSide(color: AppColors.danger),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ],
-                if (showPairing) ...[
-                  const SizedBox(height: 16),
-                  _PairingPanel(
-                    pinController: _pinController,
-                    errorMessage: _controller.errorMessage,
-                    onConnect: _connect,
-                    pcName: info.pcName,
-                    isBusy: _controller.isBusyConnecting,
-                    hint: _pairingHint(info.status),
-                  ),
-                ],
-                const Spacer(),
-                if (isConnected)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      MuteButton(
-                        icon: Icons.mic_off_rounded,
-                        activeIcon: Icons.mic_rounded,
-                        label: 'Микрофон',
-                        isMuted: info.isMicrophoneMuted,
-                        onPressed: _controller.toggleMicrophone,
-                      ),
-                      MuteButton(
-                        icon: Icons.videocam_off_rounded,
-                        activeIcon: Icons.videocam_rounded,
-                        label: 'Камера',
-                        isMuted: info.isCameraMuted,
-                        onPressed: _controller.toggleCamera,
+            decoration: const BoxDecoration(gradient: AppColors.background),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                child: Column(
+                  children: [
+                    ConnectionStatusCard(info: info),
+                    if (isConnected) ...[
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: _controller.disconnect,
+                        icon: const Icon(Icons.link_off_rounded),
+                        label: const Text('Отключиться'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.danger,
+                          side: const BorderSide(color: AppColors.danger),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
                       ),
                     ],
-                  ),
-                const Spacer(),
-              ],
+                    if (showPairing) ...[
+                      const SizedBox(height: 16),
+                      _PairingPanel(
+                        pinController: _pinController,
+                        errorMessage: _controller.errorMessage,
+                        onConnect: _connect,
+                        pcName: info.pcName,
+                        isBusy: _controller.isBusyConnecting,
+                        hint: _pairingHint(info.status),
+                      ),
+                    ],
+                    const Spacer(),
+                    if (isConnected)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          MuteButton(
+                            icon: Icons.mic_off_rounded,
+                            activeIcon: Icons.mic_rounded,
+                            label: 'Микрофон',
+                            isMuted: info.isMicrophoneMuted,
+                            onPressed: _controller.toggleMicrophone,
+                          ),
+                          MuteButton(
+                            icon: Icons.videocam_off_rounded,
+                            activeIcon: Icons.videocam_rounded,
+                            label: 'Камера',
+                            isMuted: info.isCameraMuted,
+                            onPressed: _controller.toggleCamera,
+                          ),
+                        ],
+                      ),
+                    const Spacer(),
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
-      ),
     );
   }
 
@@ -163,6 +149,61 @@ class _HomeScreenState extends State<HomeScreen> {
         ConnectionStatus.error => 'Проверьте PIN на экране ПК.',
         _ => 'PIN на экране ПК.',
       };
+}
+
+class _ResetButton extends StatelessWidget {
+  const _ResetButton({
+    required this.isResetting,
+    required this.onPressed,
+  });
+
+  final bool isResetting;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.danger,
+      elevation: 4,
+      shadowColor: Colors.black54,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: isResetting ? null : onPressed,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white70, width: 1.5),
+          ),
+          child: isResetting
+              ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: Colors.white,
+                  ),
+                )
+              : const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.restart_alt_rounded, color: Colors.white, size: 24),
+                    SizedBox(width: 6),
+                    Text(
+                      'Сброс',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
 }
 
 class _PairingPanel extends StatelessWidget {
