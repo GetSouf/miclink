@@ -6,9 +6,7 @@ using MicLinkWinUI.Infrastructure.Theming;
 using MicLinkWinUI.Presentation.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Animation;
 
 namespace MicLinkWinUI;
 
@@ -23,7 +21,7 @@ public sealed partial class MainWindow : Window
     public string CameraDeviceName => AppConstants.VirtualCameraName;
 
     private EffectSlotViewModel? _dragSlot;
-    private Border? _activeDropLine;
+    private bool _deleteZoneHover;
 
     public MainWindow()
     {
@@ -136,28 +134,30 @@ public sealed partial class MainWindow : Window
         MicMuteButton.IsChecked = ViewModel.IsMicrophoneMuted;
     }
 
-    private void ChainSlot_Tapped(object sender, TappedRoutedEventArgs e)
+    private void ChainList_DragItemsStarting(object sender, DragItemsStartingEventArgs args)
     {
-        if (sender is FrameworkElement element && element.DataContext is EffectSlotViewModel slot)
+        if (args.Items.FirstOrDefault() is EffectSlotViewModel slot)
         {
-            EffectsChainViewModel.SelectedSlot = slot;
+            _dragSlot = slot;
+            SetDeleteZoneHover(false);
         }
     }
 
-    private void ChainSlot_DragStarting(UIElement sender, DragStartingEventArgs args)
+    private void ChainList_DragItemsCompleted(object sender, DragItemsCompletedEventArgs args)
     {
-        if (sender is not FrameworkElement element || element.DataContext is not EffectSlotViewModel slot)
+        if (_deleteZoneHover && _dragSlot is not null)
         {
-            return;
+            EffectsChainViewModel.RemoveSlot(_dragSlot);
+        }
+        else if (_dragSlot is not null && EffectsChainViewModel.Chain.Contains(_dragSlot))
+        {
+            EffectsChainViewModel.OnChainReordered();
         }
 
-        _dragSlot = slot;
-        args.Data.SetText(slot.SlotId);
-        args.DragUI.SetContentFromDataPackage();
-        FxTrashOverlay.Visibility = Visibility.Visible;
+        EndDrag();
     }
 
-    private void ChainSlot_DragOver(object sender, DragEventArgs e)
+    private void FxDeleteZone_DragOver(object sender, DragEventArgs e)
     {
         if (_dragSlot is null)
         {
@@ -165,180 +165,44 @@ public sealed partial class MainWindow : Window
         }
 
         e.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Move;
-        e.DragUIOverride.Caption = "Переместить";
-
-        if (sender is not FrameworkElement element || element.DataContext is not EffectSlotViewModel target)
-        {
-            return;
-        }
-
-        var index = EffectsChainViewModel.Chain.IndexOf(target);
-        var insertAbove = e.GetPosition(element).Y < element.ActualHeight / 2;
-        ShowDropIndicator(insertAbove ? index : index + 1);
-    }
-
-    private void ChainSlot_DragLeave(object sender, DragEventArgs e)
-    {
-        if (sender is FrameworkElement element &&
-            element.FindName("DropLine") is Border line &&
-            ReferenceEquals(_activeDropLine, line))
-        {
-            HideDropIndicator();
-        }
-    }
-
-    private void ChainSlot_Drop(object sender, DragEventArgs e)
-    {
-        if (_dragSlot is null)
-        {
-            EndDrag();
-            return;
-        }
-
-        if (sender is FrameworkElement element && element.DataContext is EffectSlotViewModel target)
-        {
-            var index = EffectsChainViewModel.Chain.IndexOf(target);
-            var insertAt = e.GetPosition(element).Y < element.ActualHeight / 2 ? index : index + 1;
-            EffectsChainViewModel.MoveSlot(_dragSlot, insertAt);
-        }
-
-        EndDrag();
-        e.Handled = true;
-    }
-
-    private void FxTrash_DragOver(object sender, DragEventArgs e)
-    {
-        if (_dragSlot is null)
-        {
-            return;
-        }
-
-        e.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
         e.DragUIOverride.Caption = "Удалить";
-        HideDropIndicator();
+        SetDeleteZoneHover(true);
     }
 
-    private void FxTrash_Drop(object sender, DragEventArgs e)
+    private void FxDeleteZone_DragLeave(object sender, DragEventArgs e)
+    {
+        SetDeleteZoneHover(false);
+    }
+
+    private void FxDeleteZone_Drop(object sender, DragEventArgs e)
     {
         if (_dragSlot is not null)
         {
             EffectsChainViewModel.RemoveSlot(_dragSlot);
         }
 
-        EndDrag();
         e.Handled = true;
+        EndDrag();
     }
 
-    private void ShowDropIndicator(int insertIndex)
+    private void SetDeleteZoneHover(bool hover)
     {
-        HideDropIndicator();
-        _activeDropLine = FindDropLineAt(insertIndex);
-
-        if (_activeDropLine is null)
+        if (_deleteZoneHover == hover)
         {
             return;
         }
 
-        _activeDropLine.Opacity = 1;
-        _activeDropLine.Background = new SolidColorBrush(Microsoft.UI.Colors.IndianRed);
-        var storyboard = new Storyboard();
-        var animation = new DoubleAnimation
-        {
-            From = 0.35,
-            To = 1,
-            Duration = TimeSpan.FromMilliseconds(450),
-            AutoReverse = true,
-            RepeatBehavior = RepeatBehavior.Forever,
-        };
-        Storyboard.SetTarget(animation, _activeDropLine);
-        Storyboard.SetTargetProperty(animation, "Opacity");
-        storyboard.Children.Add(animation);
-        storyboard.Begin();
-        _activeDropLine.Tag = storyboard;
-    }
-
-    private Border? FindDropLineAt(int insertIndex)
-    {
-        if (insertIndex <= 0)
-        {
-            return FxDropIndicatorTop;
-        }
-
-        if (insertIndex >= EffectsChainViewModel.Chain.Count)
-        {
-            return FxDropIndicatorBottom;
-        }
-
-        var itemsPresenter = FindVisualChild<ItemsPresenter>(ChainItems);
-        if (itemsPresenter is null)
-        {
-            return FxDropIndicatorBottom;
-        }
-
-        if (VisualTreeHelper.GetChildrenCount(itemsPresenter) == 0)
-        {
-            return FxDropIndicatorBottom;
-        }
-
-        var panel = VisualTreeHelper.GetChild(itemsPresenter, 0);
-        if (insertIndex >= VisualTreeHelper.GetChildrenCount(panel))
-        {
-            return FxDropIndicatorBottom;
-        }
-
-        if (VisualTreeHelper.GetChild(panel, insertIndex) is FrameworkElement item)
-        {
-            return item.FindName("DropLine") as Border;
-        }
-
-        return FxDropIndicatorBottom;
-    }
-
-    private static T? FindVisualChild<T>(DependencyObject parent)
-        where T : DependencyObject
-    {
-        var count = VisualTreeHelper.GetChildrenCount(parent);
-        for (var i = 0; i < count; ++i)
-        {
-            var child = VisualTreeHelper.GetChild(parent, i);
-            if (child is T match)
-            {
-                return match;
-            }
-
-            var nested = FindVisualChild<T>(child);
-            if (nested is not null)
-            {
-                return nested;
-            }
-        }
-
-        return null;
-    }
-
-    private void HideDropIndicator()
-    {
-        if (_activeDropLine?.Tag is Storyboard storyboard)
-        {
-            storyboard.Stop();
-            _activeDropLine.Tag = null;
-        }
-
-        if (_activeDropLine is not null)
-        {
-            _activeDropLine.Opacity = 0;
-        }
-
-        FxDropIndicatorTop.Opacity = 0;
-        FxDropIndicatorBottom.Opacity = 0;
-        _activeDropLine = null;
+        _deleteZoneHover = hover;
+        FxDeleteZone.Opacity = hover ? 0.42 : 1;
+        FxDeleteZone.BorderBrush = new SolidColorBrush(
+            hover ? Windows.UI.Color.FromArgb(255, 231, 76, 60)
+                  : Windows.UI.Color.FromArgb(85, 231, 76, 60));
     }
 
     private void EndDrag()
     {
         _dragSlot = null;
-        FxTrashOverlay.Visibility = Visibility.Collapsed;
-        HideDropIndicator();
+        SetDeleteZoneHover(false);
     }
 
     private void OnThemeChanged(object? sender, Domain.Models.ThemeSettings settings)
