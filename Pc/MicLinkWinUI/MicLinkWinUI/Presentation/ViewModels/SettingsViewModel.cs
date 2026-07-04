@@ -20,9 +20,6 @@ public partial class SettingsViewModel : ObservableObject
     private AppThemeMode _selectedTheme;
 
     [ObservableProperty]
-    private string _selectedAccent = "#6C5CE7";
-
-    [ObservableProperty]
     private bool _monitorOnSpeakers = true;
 
     [ObservableProperty]
@@ -42,16 +39,6 @@ public partial class SettingsViewModel : ObservableObject
     public Visibility InstallingVisibility =>
         IsInstallingDriver ? Visibility.Visible : Visibility.Collapsed;
 
-    public IReadOnlyList<AccentOption> AccentOptions { get; } =
-    [
-        new("#6C5CE7", "Violet"),
-        new("#0984E3", "Ocean"),
-        new("#00B894", "Mint"),
-        new("#E17055", "Coral"),
-        new("#FD79A8", "Rose"),
-        new("#FDCB6E", "Gold"),
-    ];
-
     public string DiscordMicHint =>
         _virtualMicDriver.CaptureDeviceName;
 
@@ -68,7 +55,6 @@ public partial class SettingsViewModel : ObservableObject
 
         var current = _themeService.Current;
         _selectedTheme = current.Mode;
-        _selectedAccent = current.AccentColorHex;
 
         var audio = _audioOutputSettings.Current;
         _monitorOnSpeakers = audio.MonitorOnSpeakers;
@@ -85,11 +71,10 @@ public partial class SettingsViewModel : ObservableObject
         var settings = new ThemeSettings
         {
             Mode = SelectedTheme,
-            AccentColorHex = SelectedAccent
         };
 
         _themeService.Save(settings);
-        _logService.Info($"Тема изменена: {SelectedTheme}, акцент {SelectedAccent}");
+        _logService.Info($"Тема изменена: {SelectedTheme}");
     }
 
     [RelayCommand]
@@ -117,16 +102,6 @@ public partial class SettingsViewModel : ObservableObject
     }
 
     partial void OnSelectedThemeChanged(AppThemeMode value)
-    {
-        if (_isInitializing)
-        {
-            return;
-        }
-
-        ApplyTheme();
-    }
-
-    partial void OnSelectedAccentChanged(string value)
     {
         if (_isInitializing)
         {

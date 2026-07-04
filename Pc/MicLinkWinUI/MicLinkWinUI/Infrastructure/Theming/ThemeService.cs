@@ -31,19 +31,17 @@ public sealed class ThemeService : IThemeService
     public void Save(ThemeSettings settings)
     {
         _store.Set(AppConstants.SettingsKeyTheme, settings.Mode.ToString());
-        _store.Set(AppConstants.SettingsKeyAccentColor, settings.AccentColorHex);
         Apply(settings);
     }
 
     public ThemeSettings Load()
     {
         var modeValue = _store.Get(AppConstants.SettingsKeyTheme);
-        var accent = _store.Get(AppConstants.SettingsKeyAccentColor) ?? "#6C5CE7";
 
         var mode = Enum.TryParse<AppThemeMode>(modeValue, out var parsed)
             ? parsed
             : AppThemeMode.Dark;
 
-        return new ThemeSettings { Mode = mode, AccentColorHex = accent };
+        return new ThemeSettings { Mode = mode };
     }
 }

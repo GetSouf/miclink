@@ -12,6 +12,6 @@ public static class AppConstants
     public const int AudioPort = 9848;
 
     public const string SettingsKeyTheme = "Theme";
-    public const string SettingsKeyAccentColor = "AccentColor";
     public const string SettingsKeyMonitorSpeakers = "MonitorOnSpeakers";
+    public const string SettingsKeyEffectsChain = "EffectsChain";
 }

@@ -16,8 +16,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="Assets\Driver\**\*" />
-    <Content Include="Assets\Scripts\**\*" />
+    <Content Include="Assets\Driver\**\*" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Assets\Scripts\**\*" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="Assets\SplashScreen.scale-200.png" />
     <Content Include="Assets\LockScreenLogo.scale-200.png" />
     <Content Include="Assets\Square150x150Logo.scale-200.png" />

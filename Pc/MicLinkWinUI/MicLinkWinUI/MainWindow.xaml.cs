@@ -13,6 +13,7 @@ public sealed partial class MainWindow : Window
 {
     public MainViewModel ViewModel { get; }
     public SettingsViewModel SettingsViewModel { get; }
+    public EffectsChainViewModel EffectsChainViewModel { get; }
     public LogsViewModel LogsViewModel { get; }
 
     public string MicDeviceName => AppConstants.VirtualMicName;
@@ -22,11 +23,12 @@ public sealed partial class MainWindow : Window
     {
         ViewModel = AppServices.GetRequired<MainViewModel>();
         SettingsViewModel = AppServices.GetRequired<SettingsViewModel>();
+        EffectsChainViewModel = AppServices.GetRequired<EffectsChainViewModel>();
         LogsViewModel = AppServices.GetRequired<LogsViewModel>();
 
         InitializeComponent();
         Title = AppConstants.AppName;
-        AppWindow.Resize(new Windows.Graphics.SizeInt32(960, 720));
+        AppWindow.Resize(new Windows.Graphics.SizeInt32(1180, 780));
 
         var themeService = AppServices.GetRequired<IThemeService>();
         themeService.ThemeChanged += OnThemeChanged;
@@ -39,6 +41,26 @@ public sealed partial class MainWindow : Window
             AppThemeMode.Light => 2,
             _ => 1
         };
+
+        MainNav.SelectedItem = MainNav.MenuItems[0];
+        ShowSection("mic");
+    }
+
+    private void MainNav_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
+    {
+        if (args.SelectedItem is NavigationViewItem item && item.Tag is string tag)
+        {
+            ShowSection(tag);
+        }
+    }
+
+    private void ShowSection(string tag)
+    {
+        SectionMic.Visibility = tag == "mic" ? Visibility.Visible : Visibility.Collapsed;
+        SectionFx.Visibility = tag == "fx" ? Visibility.Visible : Visibility.Collapsed;
+        SectionCam.Visibility = tag == "cam" ? Visibility.Visible : Visibility.Collapsed;
+        SectionSettings.Visibility = tag == "settings" ? Visibility.Visible : Visibility.Collapsed;
+        SectionLogs.Visibility = tag == "logs" ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void ThemeRadio_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -66,14 +88,25 @@ public sealed partial class MainWindow : Window
         SettingsViewModel.SelectedTheme = mode;
     }
 
-    private void AccentColor_Click(object sender, RoutedEventArgs e)
+    private void BuiltInLibrary_ItemClick(object sender, ItemClickEventArgs e)
     {
-        if (sender is not Button button || button.Tag is not string hex)
+        if (e.ClickedItem is EffectLibraryItemViewModel item)
         {
-            return;
+            EffectsChainViewModel.AddBuiltInCommand.Execute(item);
         }
+    }
 
-        SettingsViewModel.SelectedAccent = hex;
+    private void VstLibrary_ItemClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is EffectLibraryItemViewModel item)
+        {
+            EffectsChainViewModel.AddVstCommand.Execute(item);
+        }
+    }
+
+    private void ChainList_DragItemsCompleted(ListViewBase sender, DragItemsCompletedEventArgs args)
+    {
+        EffectsChainViewModel.OnChainReordered();
     }
 
     private void OnThemeChanged(object? sender, Domain.Models.ThemeSettings settings)
